@@ -13,18 +13,41 @@
       "room",
       "available",
       "vacancy",
-      "double room",
       "single room",
       "ensuite",
-      "double bed",
+      "en-suite",
+      "male",
       "vacant",
       "€"
     ],
     "exclude": [
-      "taken",
-      "gone",
-      "sold",
-      "no longer available"
+      "vegetarian"
     ]
-  }
+  },
+  "maxRent": 900,
+  "preferredRent": 750,
+  "nearbyAreaKeywords": [
+    "dublin 2",
+    "d2",
+    "dublin 8",
+    "d8",
+    "aungier street",
+    "camden street",
+    "wexford street",
+    "harcourt street",
+    "portobello",
+    "rathmines",
+    "south circular road",
+    "dolphin's barn",
+    "ranelagh",
+    "rathgar",
+    "kevin street",
+    "golden lane",
+    "stephen's green",
+    "christchurch",
+    "the liberties",
+    "grafton street",
+    "temple bar",
+    "georges street"
+  ]
 }

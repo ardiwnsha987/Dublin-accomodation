@@ -10,7 +10,7 @@ import qrcode from 'qrcode-terminal';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
-import { matchesFilters, isGroupWatched } from './matcher.js';
+import { matchesFilters, isGroupWatched, extractPrices, findNearbyAreas } from './matcher.js';
 import { hasSeen, markSeen } from './seenStore.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -115,6 +115,9 @@ async function start() {
       const text = extractText(msg.message);
       if (!matchesFilters(text, config)) continue;
 
+      const prices = extractPrices(text);
+      if (prices.length === 1 && prices[0] >= config.maxRent) continue;
+
       markSeen(id);
 
       const sender = msg.pushName || msg.key.participant || 'Unknown';
@@ -123,11 +126,30 @@ async function start() {
         { timeZone: 'Europe/Dublin' }
       );
 
+      let rentTag;
+      if (prices.length === 0) {
+        rentTag = '💰 Price not stated — check manually';
+      } else if (prices.length > 1) {
+        rentTag = `💰 Multiple prices mentioned (€${prices.join(', €')}) — check manually`;
+      } else if (prices[0] <= config.preferredRent) {
+        rentTag = `💰 €${prices[0]}/month — priority (≤ €${config.preferredRent})`;
+      } else {
+        rentTag = `💰 €${prices[0]}/month — within budget (< €${config.maxRent})`;
+      }
+
+      const nearbyMatches = findNearbyAreas(text, config.nearbyAreaKeywords);
+      const locationTag =
+        nearbyMatches.length > 0
+          ? `📍 Near DBS (mentions: ${nearbyMatches.join(', ')})`
+          : '📍 Location not clearly near DBS — check manually';
+
       const forward =
-        `📍 New accommodation match\n` +
+        `🏠 New accommodation match\n` +
         `Group: ${groupName}\n` +
         `From: ${sender}\n` +
-        `Time: ${timestamp}\n\n` +
+        `Time: ${timestamp}\n` +
+        `${rentTag}\n` +
+        `${locationTag}\n\n` +
         `${text}`;
 
       try {

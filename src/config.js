@@ -30,4 +30,7 @@ export const config = {
   groupNameKeywords: (raw.groupNameKeywords ?? []).map((k) => k.toLowerCase()),
   include: raw.keywords?.include?.map((k) => k.toLowerCase()) ?? [],
   exclude: raw.keywords?.exclude?.map((k) => k.toLowerCase()) ?? [],
+  maxRent: raw.maxRent ?? Infinity,
+  preferredRent: raw.preferredRent ?? null,
+  nearbyAreaKeywords: (raw.nearbyAreaKeywords ?? []).map((k) => k.toLowerCase()),
 };

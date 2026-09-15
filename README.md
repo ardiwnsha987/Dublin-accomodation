@@ -36,9 +36,19 @@ care about is posted, without having to sit in every group.
      international format without `+` or spaces (e.g. Irish number
      `+353 89 978 7519` becomes `"353899787519"`).
    - `groupIds`: leave as `[]` for the first run.
+   - `groupNameKeywords`: any word that, if found in a group's name, gets it
+     watched automatically — including groups you join later.
    - `keywords.include` / `keywords.exclude`: words/phrases to match or
-     ignore, case-insensitive. Add price patterns, area names (e.g.
-     `"dublin 8"`, `"rathmines"`), etc. as you like.
+     ignore, case-insensitive. Single words match as whole words (so `"male"`
+     won't false-match inside `"female"`); phrases match as substrings.
+   - `maxRent`: hard cutoff — a message with a single, unambiguous €-amount at
+     or above this is skipped entirely.
+   - `preferredRent`: amounts at or below this get tagged "priority" in the
+     forwarded message so it's easy to spot at a glance.
+   - `nearbyAreaKeywords`: place names to flag as "near DBS" in the forwarded
+     message. This is just a keyword check against the message text, not a
+     real distance calculation — edit the list to whatever areas you consider
+     close to your college.
 4. Start the watcher:
    ```
    npm start
@@ -69,6 +79,13 @@ auto-restart on crashes.
 - A message only counts if it's in a watched group, contains at least one
   `include` keyword (if you set any), and contains none of the `exclude`
   keywords.
+- If exactly one clear €-price is found in the message and it's at or above
+  `maxRent`, the message is skipped even if the keywords matched. If no price
+  is found, or more than one number looks like it could be a price, it's
+  still forwarded (tagged "check manually") rather than risk hiding a real
+  listing — price parsing from free-form chat text is inherently imperfect.
+- The forwarded message is prefixed with a rent tag (💰) and a location tag
+  (📍) so you can triage matches quickly without opening every one.
 - Already-forwarded messages are tracked in `data/seen-messages.json` so
   restarts don't re-send duplicates.
 
