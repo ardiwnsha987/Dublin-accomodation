@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dublin Accommodation Watcher</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>🏠 Dublin Accommodation Watcher</h1>
+    <div class="status">
+      <span id="statusDot" class="dot"></span>
+      <span id="statusText">Connecting…</span>
+      <span id="groupCount" class="muted"></span>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="matches">Live Matches</button>
+    <button class="tab-btn" data-tab="filters">Filters</button>
+  </nav>
+
+  <main>
+    <section id="tab-matches" class="tab-panel active">
+      <div class="toolbar">
+        <input id="search" type="text" placeholder="Search matches…" />
+      </div>
+      <div id="matchList" class="match-list"></div>
+      <p id="emptyState" class="muted" style="display:none;">No matches yet — they'll appear here in real time as they're forwarded to your WhatsApp.</p>
+    </section>
+
+    <section id="tab-filters" class="tab-panel">
+      <form id="filterForm">
+        <div class="field">
+          <label for="targetNumber">Target WhatsApp number</label>
+          <input id="targetNumber" name="targetNumber" type="text" placeholder="353899787519" />
+        </div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label for="maxRent">Max rent (€) — hard cutoff</label>
+            <input id="maxRent" name="maxRent" type="number" min="0" />
+          </div>
+          <div class="field">
+            <label for="preferredRent">Preferred rent (€) — priority tag</label>
+            <input id="preferredRent" name="preferredRent" type="number" min="0" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="include">Include keywords <span class="muted">(one per line — message must contain at least one)</span></label>
+          <textarea id="include" name="include" rows="6"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="exclude">Exclude keywords <span class="muted">(one per line — message is skipped if it contains any)</span></label>
+          <textarea id="exclude" name="exclude" rows="6"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="nearbyAreaKeywords">Nearby area keywords <span class="muted">(flags messages mentioning these as "near DBS")</span></label>
+          <textarea id="nearbyAreaKeywords" name="nearbyAreaKeywords" rows="4"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="groupNameKeywords">Group name keywords <span class="muted">(auto-watch any group, current or future, whose name contains one of these)</span></label>
+          <textarea id="groupNameKeywords" name="groupNameKeywords" rows="3"></textarea>
+        </div>
+
+        <div class="field">
+          <label>Explicitly watched groups <span class="muted">(from your joined WhatsApp groups)</span></label>
+          <input id="groupSearch" type="text" placeholder="Filter groups by name…" />
+          <div id="groupList" class="group-list"></div>
+        </div>
+
+        <div class="actions">
+          <button type="submit">Save filters</button>
+          <span id="saveMsg" class="muted"></span>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

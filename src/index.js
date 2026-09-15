@@ -9,9 +9,12 @@ import pino from 'pino';
 import qrcode from 'qrcode-terminal';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { config } from './config.js';
+import { config, watchConfigFile } from './config.js';
 import { matchesFilters, isGroupWatched, extractPrices, findNearbyAreas } from './matcher.js';
 import { hasSeen, markSeen } from './seenStore.js';
+import { addMatch } from './matchStore.js';
+import { setConnected, setGroups } from './state.js';
+import { startServer } from './server.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const authDir = path.join(__dirname, '..', 'auth_info');
@@ -64,8 +67,10 @@ async function start() {
 
     if (connection === 'open') {
       console.log('Connected to WhatsApp.');
+      setConnected(true);
       const groups = await sock.groupFetchAllParticipating();
-      const list = Object.values(groups);
+      const list = Object.values(groups).map((g) => ({ id: g.id, subject: g.subject }));
+      setGroups(list);
       console.log(`\nYou are in ${list.length} groups:`);
       for (const g of list) {
         groupNameCache.set(g.id, g.subject);
@@ -87,6 +92,7 @@ async function start() {
     }
 
     if (connection === 'close') {
+      setConnected(false);
       const statusCode = new Boom(lastDisconnect?.error)?.output?.statusCode;
       const loggedOut = statusCode === DisconnectReason.loggedOut;
       console.log('Connection closed.', loggedOut ? 'Logged out.' : 'Reconnecting...');
@@ -155,6 +161,7 @@ async function start() {
       try {
         await sock.sendMessage(config.targetJid, { text: forward });
         console.log(`Forwarded a match from "${groupName}".`);
+        addMatch({ id, group: groupName, sender, time: timestamp, rentTag, locationTag, text });
       } catch (err) {
         console.error('Failed to forward message:', err);
       }
@@ -162,4 +169,6 @@ async function start() {
   });
 }
 
+startServer();
+watchConfigFile();
 start();

@@ -21,7 +21,12 @@
       "€"
     ],
     "exclude": [
-      "vegetarian"
+      "vegetarian",
+      "female only",
+      "females only",
+      "girls only",
+      "ladies only",
+      "women only"
     ]
   },
   "maxRent": 900,

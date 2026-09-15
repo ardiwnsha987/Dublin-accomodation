@@ -56,14 +56,23 @@ care about is posted, without having to sit in every group.
 5. A QR code prints in the terminal. On your phone: **WhatsApp → Settings →
    Linked Devices → Link a Device**, then scan it. This only needs to be done
    once — your session is saved in `auth_info/`.
-6. Once connected, the script prints every group you're in along with its
-   ID, e.g.:
-   ```
-   Dublin Rooms & Flatshares -> 120363012345678901@g.us
-   ```
-   Copy the IDs of the accommodation groups you actually want watched into
-   `groupIds` in `config.json`, then restart (`npm start`) so it only
-   watches those groups instead of all of them.
+6. Open **http://localhost:3000** in your browser — this is the dashboard
+   (see below). Use its Filters tab to tick which groups to watch and edit
+   keywords/rent/location settings instead of hand-editing JSON.
+
+## Dashboard
+
+Starting the watcher (`npm start`) also starts a local web dashboard at
+**http://localhost:3000** (only reachable from your own machine, nothing is
+exposed to the internet). It has two tabs:
+
+- **Live Matches** — every match forwarded to your WhatsApp shows up here
+  too, in real time, with the rent/location tags as colored chips, plus a
+  search box to filter by text.
+- **Filters** — edit `include`/`exclude` keywords, `maxRent`/`preferredRent`,
+  `nearbyAreaKeywords`, `groupNameKeywords`, and tick which of your joined
+  WhatsApp groups to watch (fetched live from your account). Saving writes
+  straight to `config.json` and takes effect immediately — no restart needed.
 
 ## Running it continuously
 
@@ -92,7 +101,11 @@ auto-restart on crashes.
 ## Files
 
 - `src/index.js` — connects to WhatsApp, listens for messages, forwards matches.
-- `src/config.js` — loads and validates `config.json`.
-- `src/matcher.js` — keyword include/exclude filtering logic.
+- `src/config.js` — loads `config.json`, hot-reloads it on change, exposes read/write helpers.
+- `src/matcher.js` — keyword include/exclude filtering, price extraction, location tagging.
 - `src/seenStore.js` — tracks which message IDs have already been forwarded.
+- `src/matchStore.js` — persists forwarded matches for the dashboard's history list.
+- `src/state.js` — shared connection/group status used by the dashboard.
+- `src/server.js` — the local dashboard's HTTP/API server (Express).
+- `public/` — the dashboard's front-end (plain HTML/CSS/JS, no build step).
 - `config.json`, `auth_info/`, `data/` — all local-only, gitignored (not committed).
