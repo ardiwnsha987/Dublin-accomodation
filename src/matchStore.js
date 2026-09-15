@@ -19,13 +19,30 @@ if (existsSync(filePath)) {
   }
 }
 
+function persist() {
+  writeFileSync(filePath, JSON.stringify(matches));
+}
+
 export function addMatch(match) {
   matches.unshift(match);
   if (matches.length > MAX_ENTRIES) matches.length = MAX_ENTRIES;
-  writeFileSync(filePath, JSON.stringify(matches));
+  persist();
   events.emit('match', match);
 }
 
 export function getMatches() {
   return matches;
+}
+
+export function dismissMatch(id) {
+  const match = matches.find((m) => m.id === id);
+  if (!match) return false;
+  match.dismissed = true;
+  persist();
+  return true;
+}
+
+export function clearMatches() {
+  matches = [];
+  persist();
 }

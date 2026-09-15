@@ -6,14 +6,16 @@ import {
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import pino from 'pino';
-import qrcode from 'qrcode-terminal';
+import qrcodeTerminal from 'qrcode-terminal';
+import QRCode from 'qrcode';
+import { rmSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { config, watchConfigFile } from './config.js';
 import { matchesFilters, isGroupWatched, extractPrices, findNearbyAreas } from './matcher.js';
 import { hasSeen, markSeen } from './seenStore.js';
 import { addMatch } from './matchStore.js';
-import { setConnected, setGroups, state, events } from './state.js';
+import { setConnected, setGroups, setQr, emitToast, state, events } from './state.js';
 import { startServer } from './server.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -25,6 +27,7 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 let currentSock = null;
 let backfillRunning = false;
+let intentionalLogout = false;
 
 function extractText(message) {
   if (!message) return '';
@@ -45,6 +48,15 @@ async function getGroupName(sock, jid) {
     return metadata.subject;
   } catch {
     return jid;
+  }
+}
+
+async function getGroupLink(sock, jid) {
+  try {
+    const code = await sock.groupInviteCode(jid);
+    return `https://chat.whatsapp.com/${code}`;
+  } catch {
+    return null;
   }
 }
 
@@ -90,40 +102,46 @@ async function processMessage(sock, msg) {
       ? `📍 Near DBS (mentions: ${nearbyMatches.join(', ')})`
       : '📍 Location not clearly near DBS — check manually';
 
-  const forward =
+  const groupLink = await getGroupLink(sock, remoteJid);
+
+  const header =
     `🏠 New accommodation match\n` +
     `Group: ${groupName}\n` +
     `From: ${sender}\n` +
     `Time: ${timestamp}\n` +
     `${rentTag}\n` +
-    `${locationTag}\n\n` +
-    `${text}`;
+    `${locationTag}\n` +
+    (groupLink ? `Group link: ${groupLink}\n` : 'Group link: unavailable (you are not an admin of this group)\n') +
+    `\nOriginal message forwarded below ⬇️`;
 
   try {
-    await sock.sendMessage(config.targetJid, { text: forward });
+    await sock.sendMessage(config.targetJid, { text: header });
+    await sock.sendMessage(config.targetJid, { forward: msg });
     console.log(`Forwarded a match from "${groupName}".`);
-    addMatch({ id, group: groupName, sender, time: timestamp, rentTag, locationTag, text });
+    addMatch({ id, group: groupName, sender, time: timestamp, rentTag, locationTag, groupLink, text });
   } catch (err) {
     console.error('Failed to forward message:', err);
   }
 }
 
-async function runBackfill(sock) {
+async function runBackfill(sock, allGroups) {
   if (backfillRunning) {
     events.emit('backfill', { status: 'already-running' });
     return;
   }
   backfillRunning = true;
 
-  const watched = state.groups.filter((g) => isGroupWatched(g.id, g.subject, config));
-  events.emit('backfill', { status: 'started', total: watched.length });
+  const targets = allGroups
+    ? state.groups
+    : state.groups.filter((g) => isGroupWatched(g.id, g.subject, config));
+  events.emit('backfill', { status: 'started', total: targets.length });
 
-  for (let i = 0; i < watched.length; i++) {
-    const g = watched[i];
+  for (let i = 0; i < targets.length; i++) {
+    const g = targets[i];
     events.emit('backfill', {
       status: 'progress',
       current: i + 1,
-      total: watched.length,
+      total: targets.length,
       group: g.subject,
     });
     try {
@@ -134,16 +152,52 @@ async function runBackfill(sock) {
     await delay(2500);
   }
 
-  events.emit('backfill', { status: 'requested', total: watched.length });
+  events.emit('backfill', { status: 'requested', total: targets.length });
   backfillRunning = false;
 }
 
-events.on('backfill-request', () => {
+events.on('backfill-request', (payload) => {
   if (!currentSock) {
     events.emit('backfill', { status: 'not-connected' });
     return;
   }
-  runBackfill(currentSock);
+  runBackfill(currentSock, !!payload?.allGroups);
+});
+
+events.on('test-message-request', async () => {
+  if (!currentSock) {
+    emitToast('error', 'Not connected to WhatsApp yet.');
+    return;
+  }
+  try {
+    await currentSock.sendMessage(config.targetJid, {
+      text: '✅ Test message from your Dublin Accommodation Watcher — forwarding is working.',
+    });
+    emitToast('success', 'Test message sent.');
+  } catch (err) {
+    emitToast('error', `Failed to send test message: ${err.message}`);
+  }
+});
+
+events.on('logout-request', async () => {
+  if (!currentSock) {
+    emitToast('error', 'Not connected — nothing to log out of.');
+    return;
+  }
+  intentionalLogout = true;
+  try {
+    await currentSock.logout();
+  } catch (err) {
+    console.error('Logout error (continuing to reset session):', err.message);
+  }
+  try {
+    rmSync(authDir, { recursive: true, force: true });
+  } catch (err) {
+    console.error('Failed to clear auth_info:', err.message);
+  }
+  groupNameCache.clear();
+  setGroups([]);
+  start();
 });
 
 async function start() {
@@ -166,7 +220,13 @@ async function start() {
 
     if (qr) {
       console.log('\nScan this QR code with WhatsApp (Linked devices > Link a device):\n');
-      qrcode.generate(qr, { small: true });
+      qrcodeTerminal.generate(qr, { small: true });
+      try {
+        const dataUrl = await QRCode.toDataURL(qr);
+        setQr(dataUrl);
+      } catch (err) {
+        console.error('Failed to render QR for the dashboard:', err.message);
+      }
     }
 
     if (connection === 'open') {
@@ -203,9 +263,10 @@ async function start() {
       console.log('Connection closed.', loggedOut ? 'Logged out.' : 'Reconnecting...');
       if (!loggedOut) {
         start();
-      } else {
+      } else if (!intentionalLogout) {
         console.log('Delete the auth_info/ folder and restart to log in again.');
       }
+      intentionalLogout = false;
     }
   });
 

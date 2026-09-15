@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { readRawConfig, writeRawConfig } from './config.js';
-import { getMatches } from './matchStore.js';
+import { getMatches, dismissMatch, clearMatches } from './matchStore.js';
 import { state, events } from './state.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -21,7 +21,25 @@ export function startServer() {
     res.json(state.groups);
   });
 
+  app.get('/api/qr', (req, res) => {
+    res.json({ dataUrl: state.qr });
+  });
+
   app.get('/api/matches', (req, res) => {
+    res.json(getMatches());
+  });
+
+  app.post('/api/matches/:id/dismiss', (req, res) => {
+    res.json({ ok: dismissMatch(req.params.id) });
+  });
+
+  app.post('/api/matches/clear', (req, res) => {
+    clearMatches();
+    res.json({ ok: true });
+  });
+
+  app.get('/api/matches/export', (req, res) => {
+    res.set('Content-Disposition', 'attachment; filename="accommodation-matches.json"');
     res.json(getMatches());
   });
 
@@ -39,7 +57,17 @@ export function startServer() {
   });
 
   app.post('/api/backfill', (req, res) => {
-    events.emit('backfill-request');
+    events.emit('backfill-request', { allGroups: !!req.body?.allGroups });
+    res.json({ ok: true });
+  });
+
+  app.post('/api/test-message', (req, res) => {
+    events.emit('test-message-request');
+    res.json({ ok: true });
+  });
+
+  app.post('/api/logout', (req, res) => {
+    events.emit('logout-request');
     res.json({ ok: true });
   });
 
@@ -54,16 +82,23 @@ export function startServer() {
     const onMatch = (match) => res.write(`event: match\ndata: ${JSON.stringify(match)}\n\n`);
     const onStatus = (status) => res.write(`event: status\ndata: ${JSON.stringify(status)}\n\n`);
     const onBackfill = (payload) => res.write(`event: backfill\ndata: ${JSON.stringify(payload)}\n\n`);
+    const onQr = (payload) => res.write(`event: qr\ndata: ${JSON.stringify(payload)}\n\n`);
+    const onToast = (payload) => res.write(`event: toast\ndata: ${JSON.stringify(payload)}\n\n`);
     events.on('match', onMatch);
     events.on('status', onStatus);
     events.on('backfill', onBackfill);
+    events.on('qr', onQr);
+    events.on('toast', onToast);
 
     res.write(`event: status\ndata: ${JSON.stringify({ connected: state.connected, groupCount: state.groups.length })}\n\n`);
+    if (state.qr) res.write(`event: qr\ndata: ${JSON.stringify({ dataUrl: state.qr })}\n\n`);
 
     req.on('close', () => {
       events.off('match', onMatch);
       events.off('status', onStatus);
       events.off('backfill', onBackfill);
+      events.off('qr', onQr);
+      events.off('toast', onToast);
     });
   });
 

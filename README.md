@@ -53,11 +53,11 @@ care about is posted, without having to sit in every group.
    ```
    npm start
    ```
-5. A QR code prints in the terminal. On your phone: **WhatsApp → Settings →
+5. Open **http://localhost:3000** in your browser — a QR code appears there
+   too (as well as in the terminal). On your phone: **WhatsApp → Settings →
    Linked Devices → Link a Device**, then scan it. This only needs to be done
    once — your session is saved in `auth_info/`.
-6. Open **http://localhost:3000** in your browser — this is the dashboard
-   (see below). Use its Filters tab to tick which groups to watch and edit
+6. Use the dashboard's Filters tab to tick which groups to watch and edit
    keywords/rent/location settings instead of hand-editing JSON.
 
 ## Dashboard
@@ -67,21 +67,50 @@ Starting the watcher (`npm start`) also starts a local web dashboard at
 exposed to the internet). It has two tabs:
 
 - **Live Matches** — every match forwarded to your WhatsApp shows up here
-  too, in real time, with the rent/location tags as colored chips, plus a
-  search box to filter by text.
+  too, in real time, as a card with rent/location chips, a link to open the
+  source group in WhatsApp (when your account can generate an invite link —
+  most groups you're a plain member of won't allow this, WhatsApp restricts
+  it to admins), and a Dismiss button to clear items you've already handled.
+  A search box and "All / Priority rent / Near DBS" filter chips help you
+  triage a long list. A stats bar up top shows total matches, how many are
+  priority-rent, how many are tagged near DBS, and how many groups are
+  currently watched.
 - **Filters** — edit `include`/`exclude` keywords, `maxRent`/`preferredRent`,
   `nearbyAreaKeywords`, `groupNameKeywords`, and tick which of your joined
   WhatsApp groups to watch (fetched live from your account). Saving writes
   straight to `config.json` and takes effect immediately — no restart needed.
 
-The Live Matches tab also has a **"Run full search on all watched groups"**
-button. This asks WhatsApp to resend older messages for each watched group so
-listings posted before the watcher started can be matched too. It's
-best-effort: WhatsApp's companion-device history sync decides what it's
-willing to hand back, older messages may not come through at all, and there's
-no guarantee of getting everything you've already scrolled past. Running it
-repeatedly adds to the account-flag risk noted above, so use it sparingly —
-once or twice, not on a loop.
+Other controls on the Live Matches tab:
+
+- **🔍 Search watched groups** (with an "include all joined groups" checkbox)
+  — asks WhatsApp to resend older messages so listings posted before the
+  watcher started can be matched too. This is best-effort: WhatsApp's
+  companion-device history sync decides what it's willing to hand back,
+  older messages may not come through at all, and there's no guarantee of
+  getting everything you've already scrolled past. Running it repeatedly
+  adds to the account-flag risk noted above, so use it sparingly — once or
+  twice, not on a loop.
+- **✉️ Send test message** — sends a one-line confirmation to your target
+  number, useful for checking the forwarding path works without waiting for
+  a real listing.
+- **⬇️ Export matches** / **🗑️ Clear all** — download your match history as
+  JSON, or wipe the dashboard's list (this doesn't affect WhatsApp itself).
+
+**Log out** (top right) logs the currently linked WhatsApp account out
+properly (not just a local file delete) and immediately brings up a fresh QR
+code in the dashboard so you can link a different WhatsApp account if you
+want. Confirm before clicking — it ends the current session.
+
+### On forwarded messages
+
+Each match sends **two** WhatsApp messages to your target number: a text
+summary (group, sender, time, rent/location tags, and the group's invite
+link when available), followed by a native **forward of the original
+message** (preserving its original formatting/media, tagged "Forwarded" by
+WhatsApp itself). There is no such thing as a link that jumps straight to a
+specific message inside a group — WhatsApp doesn't support that in the
+official app either, so no library, official or not, can produce one; the
+native forward plus the group link are the closest practical equivalent.
 
 ## Running it continuously
 

@@ -7,14 +7,52 @@
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div id="qrOverlay" class="qr-overlay">
+    <div class="qr-box">
+      <h2>Link WhatsApp</h2>
+      <img id="qrImage" alt="Scan this QR code with WhatsApp" />
+      <p class="muted">Open WhatsApp on your phone → Settings → Linked Devices → Link a Device,<br />then scan this code. This can be a different account than before.</p>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
   <header class="topbar">
-    <h1>🏠 Dublin Accommodation Watcher</h1>
-    <div class="status">
-      <span id="statusDot" class="dot"></span>
-      <span id="statusText">Connecting…</span>
-      <span id="groupCount" class="muted"></span>
+    <div class="brand">
+      <span class="brand-icon">🏠</span>
+      <div>
+        <h1>Dublin Accommodation Watcher</h1>
+        <p class="tagline">Real-time WhatsApp group monitoring</p>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="status">
+        <span id="statusDot" class="dot"></span>
+        <span id="statusText">Connecting…</span>
+        <span id="groupCount" class="muted"></span>
+      </div>
+      <button id="logoutBtn" type="button" class="btn btn-danger-outline">Log out</button>
     </div>
   </header>
+
+  <section class="stats-bar">
+    <div class="stat">
+      <span id="statTotal" class="stat-value">0</span>
+      <span class="stat-label">Total matches</span>
+    </div>
+    <div class="stat">
+      <span id="statPriority" class="stat-value">0</span>
+      <span class="stat-label">Priority rent</span>
+    </div>
+    <div class="stat">
+      <span id="statNearby" class="stat-value">0</span>
+      <span class="stat-label">Near DBS</span>
+    </div>
+    <div class="stat">
+      <span id="statWatched" class="stat-value">0</span>
+      <span class="stat-label">Watched groups</span>
+    </div>
+  </section>
 
   <nav class="tabs">
     <button class="tab-btn active" data-tab="matches">Live Matches</button>
@@ -25,15 +63,35 @@
     <section id="tab-matches" class="tab-panel active">
       <div class="toolbar">
         <input id="search" type="text" placeholder="Search matches…" />
-        <button id="backfillBtn" type="button">🔍 Run full search on all watched groups</button>
+        <div class="chip-filters">
+          <button class="chip-filter active" data-filter="all">All</button>
+          <button class="chip-filter" data-filter="priority">Priority rent</button>
+          <button class="chip-filter" data-filter="nearby">Near DBS</button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <button id="backfillBtn" type="button" class="btn btn-secondary">🔍 Search watched groups</button>
+        <label class="checkbox-label">
+          <input id="allGroupsCheck" type="checkbox" /> include all joined groups, not just watched
+        </label>
       </div>
       <p class="muted backfill-note">
-        This asks WhatsApp to resend older messages for each watched group so past listings can be
-        matched too. It's best-effort — WhatsApp decides how much history it hands back, older
-        messages may not come through at all, and running this often raises the same account-risk
-        already noted for this whole setup, so use it sparingly rather than repeatedly.
+        Asks WhatsApp to resend older messages so past listings can be matched too. Best-effort —
+        WhatsApp decides how much history it hands back, and running it often adds to the account-flag
+        risk noted for this whole setup, so use it sparingly.
       </p>
       <p id="backfillStatus" class="muted"></p>
+
+      <div class="toolbar">
+        <button id="testMessageBtn" type="button" class="btn btn-ghost">✉️ Send test message</button>
+        <button id="exportBtn" type="button" class="btn btn-ghost">⬇️ Export matches</button>
+        <button id="clearBtn" type="button" class="btn btn-ghost">🗑️ Clear all</button>
+        <label class="checkbox-label">
+          <input id="showDismissed" type="checkbox" /> show dismissed
+        </label>
+      </div>
+
       <div id="matchList" class="match-list"></div>
       <p id="emptyState" class="muted" style="display:none;">No matches yet — they'll appear here in real time as they're forwarded to your WhatsApp.</p>
     </section>
@@ -83,12 +141,14 @@
         </div>
 
         <div class="actions">
-          <button type="submit">Save filters</button>
+          <button type="submit" class="btn btn-primary">Save filters</button>
           <span id="saveMsg" class="muted"></span>
         </div>
       </form>
     </section>
   </main>
+
+  <footer class="footer">Developed by Ardiwnsha</footer>
 
   <script src="app.js"></script>
 </body>
