@@ -8,6 +8,7 @@ import { state, events } from './state.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '127.0.0.1';
 
 export function startServer() {
   const app = express();
@@ -124,7 +125,12 @@ export function startServer() {
     });
   });
 
-  app.listen(PORT, () => {
-    console.log(`\nDashboard running at http://localhost:${PORT}\n`);
+  app.listen(PORT, HOST, () => {
+    console.log(`\nDashboard running at http://${HOST}:${PORT}\n`);
+    if (HOST !== '127.0.0.1') {
+      console.log(
+        'WARNING: bound to a non-localhost address with no login/auth — anyone reaching this address can view your matches and control your WhatsApp session. Use an SSH tunnel instead unless you have added your own auth.'
+      );
+    }
   });
 }

@@ -142,6 +142,60 @@ nohup npm start > watcher.log 2>&1 &
 or use a process manager like `pm2` if you want it to survive reboots and
 auto-restart on crashes.
 
+This still depends on the machine it's running on staying on. If you want it
+running even when your laptop is off, put it on an always-on machine — see
+below.
+
+## Running 24/7 on a cloud VPS
+
+This is the same app, just running on a small always-on server instead of
+your laptop, so it works whether or not your laptop is on. Any Ubuntu VPS
+works (Oracle Cloud's free tier, Hetzner, DigitalOcean, etc. — pick whichever
+you're comfortable creating an account with; this repo doesn't depend on any
+specific one).
+
+1. Create an Ubuntu 22.04+ VPS with your provider and note its IP address and
+   your SSH login (usually an SSH key you download during creation).
+2. SSH in: `ssh youruser@your-server-ip`
+3. Install Node.js and git (Ubuntu):
+   ```bash
+   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+   sudo apt-get install -y nodejs git
+   ```
+4. Clone the repo and set up config as before:
+   ```bash
+   git clone <this-repo-url>
+   cd Dublin-accomodation
+   git checkout claude/dublin-accommodation-whatsapp-lfbuhc
+   npm install
+   cp config.example.json config.json
+   nano config.json   # fill in targetNumber, keywords, etc.
+   ```
+5. Install `pm2` so it keeps running and survives reboots:
+   ```bash
+   sudo npm install -g pm2
+   pm2 start src/index.js --name accommodation-watcher
+   pm2 save
+   pm2 startup   # then run the command it prints
+   ```
+6. **Viewing the dashboard and scanning the QR code**: the dashboard only
+   binds to the VPS's own `127.0.0.1` (localhost), never the public internet
+   — it has no login, so exposing it directly would let anyone who finds the
+   address view your matches and control your WhatsApp session. Instead,
+   tunnel it to your own laptop over SSH:
+   ```bash
+   ssh -L 3000:127.0.0.1:3000 youruser@your-server-ip
+   ```
+   Leave that running and open **http://localhost:3000** in your own
+   browser — it's actually talking to the dashboard on the VPS. Scan the QR
+   code that appears there.
+7. Make sure the VPS firewall doesn't allow inbound traffic on port 3000 at
+   all (only SSH, port 22) — the tunnel above doesn't need it open.
+
+To check on it later: `ssh` in, then `pm2 logs accommodation-watcher` for
+the terminal output, or re-open the SSH tunnel any time you want to see the
+dashboard.
+
 ## How matching works
 
 - A message only counts if it's in a watched group, contains at least one
