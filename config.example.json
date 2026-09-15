@@ -1,0 +1,23 @@
+{
+  "targetNumber": "353890000000",
+  "groupIds": [],
+  "keywords": {
+    "include": [
+      "room",
+      "available",
+      "vacancy",
+      "double room",
+      "single room",
+      "ensuite",
+      "double bed",
+      "vacant",
+      "€"
+    ],
+    "exclude": [
+      "taken",
+      "gone",
+      "sold",
+      "no longer available"
+    ]
+  }
+}

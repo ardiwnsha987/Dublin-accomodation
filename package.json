@@ -1,0 +1,16 @@
+{
+  "name": "whatsapp-accommodation-watcher",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Watches selected WhatsApp groups in real time and forwards accommodation listings matching your filters to another WhatsApp number.",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.9",
+    "pino": "^9.4.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
