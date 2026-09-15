@@ -16,7 +16,7 @@ import { hasSeen, markSeen } from './seenStore.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const authDir = path.join(__dirname, '..', 'auth_info');
 
-const logger = pino({ level: 'warn' });
+const logger = pino({ level: 'silent' });
 const groupNameCache = new Map();
 
 function extractText(message) {
