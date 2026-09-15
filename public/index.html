@@ -25,7 +25,15 @@
     <section id="tab-matches" class="tab-panel active">
       <div class="toolbar">
         <input id="search" type="text" placeholder="Search matches…" />
+        <button id="backfillBtn" type="button">🔍 Run full search on all watched groups</button>
       </div>
+      <p class="muted backfill-note">
+        This asks WhatsApp to resend older messages for each watched group so past listings can be
+        matched too. It's best-effort — WhatsApp decides how much history it hands back, older
+        messages may not come through at all, and running this often raises the same account-risk
+        already noted for this whole setup, so use it sparingly rather than repeatedly.
+      </p>
+      <p id="backfillStatus" class="muted"></p>
       <div id="matchList" class="match-list"></div>
       <p id="emptyState" class="muted" style="display:none;">No matches yet — they'll appear here in real time as they're forwarded to your WhatsApp.</p>
     </section>

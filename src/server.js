@@ -38,6 +38,11 @@ export function startServer() {
     }
   });
 
+  app.post('/api/backfill', (req, res) => {
+    events.emit('backfill-request');
+    res.json({ ok: true });
+  });
+
   app.get('/api/stream', (req, res) => {
     res.set({
       'Content-Type': 'text/event-stream',
@@ -48,14 +53,17 @@ export function startServer() {
 
     const onMatch = (match) => res.write(`event: match\ndata: ${JSON.stringify(match)}\n\n`);
     const onStatus = (status) => res.write(`event: status\ndata: ${JSON.stringify(status)}\n\n`);
+    const onBackfill = (payload) => res.write(`event: backfill\ndata: ${JSON.stringify(payload)}\n\n`);
     events.on('match', onMatch);
     events.on('status', onStatus);
+    events.on('backfill', onBackfill);
 
     res.write(`event: status\ndata: ${JSON.stringify({ connected: state.connected, groupCount: state.groups.length })}\n\n`);
 
     req.on('close', () => {
       events.off('match', onMatch);
       events.off('status', onStatus);
+      events.off('backfill', onBackfill);
     });
   });
 

@@ -74,6 +74,15 @@ exposed to the internet). It has two tabs:
   WhatsApp groups to watch (fetched live from your account). Saving writes
   straight to `config.json` and takes effect immediately — no restart needed.
 
+The Live Matches tab also has a **"Run full search on all watched groups"**
+button. This asks WhatsApp to resend older messages for each watched group so
+listings posted before the watcher started can be matched too. It's
+best-effort: WhatsApp's companion-device history sync decides what it's
+willing to hand back, older messages may not come through at all, and there's
+no guarantee of getting everything you've already scrolled past. Running it
+repeatedly adds to the account-flag risk noted above, so use it sparingly —
+once or twice, not on a loop.
+
 ## Running it continuously
 
 Keep the terminal/process running in the background, e.g.:

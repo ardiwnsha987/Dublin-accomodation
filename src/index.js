@@ -13,7 +13,7 @@ import { config, watchConfigFile } from './config.js';
 import { matchesFilters, isGroupWatched, extractPrices, findNearbyAreas } from './matcher.js';
 import { hasSeen, markSeen } from './seenStore.js';
 import { addMatch } from './matchStore.js';
-import { setConnected, setGroups } from './state.js';
+import { setConnected, setGroups, state, events } from './state.js';
 import { startServer } from './server.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -21,6 +21,10 @@ const authDir = path.join(__dirname, '..', 'auth_info');
 
 const logger = pino({ level: 'silent' });
 const groupNameCache = new Map();
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+let currentSock = null;
+let backfillRunning = false;
 
 function extractText(message) {
   if (!message) return '';
@@ -44,16 +48,116 @@ async function getGroupName(sock, jid) {
   }
 }
 
+async function processMessage(sock, msg) {
+  const remoteJid = msg.key.remoteJid;
+  if (!remoteJid?.endsWith('@g.us')) return;
+  if (msg.key.fromMe) return;
+
+  const id = msg.key.id;
+  if (hasSeen(id)) return;
+
+  const groupName = await getGroupName(sock, remoteJid);
+  if (!isGroupWatched(remoteJid, groupName, config)) return;
+
+  const text = extractText(msg.message);
+  if (!matchesFilters(text, config)) return;
+
+  const prices = extractPrices(text);
+  if (prices.length === 1 && prices[0] >= config.maxRent) return;
+
+  markSeen(id);
+
+  const sender = msg.pushName || msg.key.participant || 'Unknown';
+  const timestamp = new Date((msg.messageTimestamp ?? Date.now() / 1000) * 1000).toLocaleString(
+    'en-IE',
+    { timeZone: 'Europe/Dublin' }
+  );
+
+  let rentTag;
+  if (prices.length === 0) {
+    rentTag = '💰 Price not stated — check manually';
+  } else if (prices.length > 1) {
+    rentTag = `💰 Multiple prices mentioned (€${prices.join(', €')}) — check manually`;
+  } else if (prices[0] <= config.preferredRent) {
+    rentTag = `💰 €${prices[0]}/month — priority (≤ €${config.preferredRent})`;
+  } else {
+    rentTag = `💰 €${prices[0]}/month — within budget (< €${config.maxRent})`;
+  }
+
+  const nearbyMatches = findNearbyAreas(text, config.nearbyAreaKeywords);
+  const locationTag =
+    nearbyMatches.length > 0
+      ? `📍 Near DBS (mentions: ${nearbyMatches.join(', ')})`
+      : '📍 Location not clearly near DBS — check manually';
+
+  const forward =
+    `🏠 New accommodation match\n` +
+    `Group: ${groupName}\n` +
+    `From: ${sender}\n` +
+    `Time: ${timestamp}\n` +
+    `${rentTag}\n` +
+    `${locationTag}\n\n` +
+    `${text}`;
+
+  try {
+    await sock.sendMessage(config.targetJid, { text: forward });
+    console.log(`Forwarded a match from "${groupName}".`);
+    addMatch({ id, group: groupName, sender, time: timestamp, rentTag, locationTag, text });
+  } catch (err) {
+    console.error('Failed to forward message:', err);
+  }
+}
+
+async function runBackfill(sock) {
+  if (backfillRunning) {
+    events.emit('backfill', { status: 'already-running' });
+    return;
+  }
+  backfillRunning = true;
+
+  const watched = state.groups.filter((g) => isGroupWatched(g.id, g.subject, config));
+  events.emit('backfill', { status: 'started', total: watched.length });
+
+  for (let i = 0; i < watched.length; i++) {
+    const g = watched[i];
+    events.emit('backfill', {
+      status: 'progress',
+      current: i + 1,
+      total: watched.length,
+      group: g.subject,
+    });
+    try {
+      await sock.fetchMessageHistory(50, { remoteJid: g.id, fromMe: false, id: '' }, Date.now());
+    } catch (err) {
+      console.error(`History request failed for "${g.subject}":`, err.message);
+    }
+    await delay(2500);
+  }
+
+  events.emit('backfill', { status: 'requested', total: watched.length });
+  backfillRunning = false;
+}
+
+events.on('backfill-request', () => {
+  if (!currentSock) {
+    events.emit('backfill', { status: 'not-connected' });
+    return;
+  }
+  runBackfill(currentSock);
+});
+
 async function start() {
-  const { state, saveCreds } = await useMultiFileAuthState(authDir);
+  const { state: authState, saveCreds } = await useMultiFileAuthState(authDir);
   const { version } = await fetchLatestBaileysVersion();
 
   const sock = makeWASocket({
     version,
-    auth: state,
+    auth: authState,
     logger,
     printQRInTerminal: false,
   });
+
+  currentSock = sock;
 
   sock.ev.on('creds.update', saveCreds);
 
@@ -93,6 +197,7 @@ async function start() {
 
     if (connection === 'close') {
       setConnected(false);
+      if (currentSock === sock) currentSock = null;
       const statusCode = new Boom(lastDisconnect?.error)?.output?.statusCode;
       const loggedOut = statusCode === DisconnectReason.loggedOut;
       console.log('Connection closed.', loggedOut ? 'Logged out.' : 'Reconnecting...');
@@ -106,65 +211,15 @@ async function start() {
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
-
     for (const msg of messages) {
-      const remoteJid = msg.key.remoteJid;
-      if (!remoteJid?.endsWith('@g.us')) continue;
-      if (msg.key.fromMe) continue;
+      await processMessage(sock, msg);
+    }
+  });
 
-      const id = msg.key.id;
-      if (hasSeen(id)) continue;
-
-      const groupName = await getGroupName(sock, remoteJid);
-      if (!isGroupWatched(remoteJid, groupName, config)) continue;
-
-      const text = extractText(msg.message);
-      if (!matchesFilters(text, config)) continue;
-
-      const prices = extractPrices(text);
-      if (prices.length === 1 && prices[0] >= config.maxRent) continue;
-
-      markSeen(id);
-
-      const sender = msg.pushName || msg.key.participant || 'Unknown';
-      const timestamp = new Date((msg.messageTimestamp ?? Date.now() / 1000) * 1000).toLocaleString(
-        'en-IE',
-        { timeZone: 'Europe/Dublin' }
-      );
-
-      let rentTag;
-      if (prices.length === 0) {
-        rentTag = '💰 Price not stated — check manually';
-      } else if (prices.length > 1) {
-        rentTag = `💰 Multiple prices mentioned (€${prices.join(', €')}) — check manually`;
-      } else if (prices[0] <= config.preferredRent) {
-        rentTag = `💰 €${prices[0]}/month — priority (≤ €${config.preferredRent})`;
-      } else {
-        rentTag = `💰 €${prices[0]}/month — within budget (< €${config.maxRent})`;
-      }
-
-      const nearbyMatches = findNearbyAreas(text, config.nearbyAreaKeywords);
-      const locationTag =
-        nearbyMatches.length > 0
-          ? `📍 Near DBS (mentions: ${nearbyMatches.join(', ')})`
-          : '📍 Location not clearly near DBS — check manually';
-
-      const forward =
-        `🏠 New accommodation match\n` +
-        `Group: ${groupName}\n` +
-        `From: ${sender}\n` +
-        `Time: ${timestamp}\n` +
-        `${rentTag}\n` +
-        `${locationTag}\n\n` +
-        `${text}`;
-
-      try {
-        await sock.sendMessage(config.targetJid, { text: forward });
-        console.log(`Forwarded a match from "${groupName}".`);
-        addMatch({ id, group: groupName, sender, time: timestamp, rentTag, locationTag, text });
-      } catch (err) {
-        console.error('Failed to forward message:', err);
-      }
+  sock.ev.on('messaging-history.set', async ({ messages }) => {
+    console.log(`Received ${messages.length} historical message(s) from WhatsApp, checking for matches...`);
+    for (const msg of messages) {
+      await processMessage(sock, msg);
     }
   });
 }

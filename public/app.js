@@ -65,6 +65,26 @@ async function loadStatus() {
   setStatus(await res.json());
 }
 
+function renderBackfillStatus(payload) {
+  const el_ = el('#backfillStatus');
+  const btn = el('#backfillBtn');
+
+  if (payload.status === 'not-connected') {
+    el_.textContent = 'Not connected to WhatsApp yet — try again once connected.';
+    btn.disabled = false;
+  } else if (payload.status === 'already-running') {
+    el_.textContent = 'A search is already running.';
+  } else if (payload.status === 'started') {
+    btn.disabled = true;
+    el_.textContent = `Starting search across ${payload.total} group(s)...`;
+  } else if (payload.status === 'progress') {
+    el_.textContent = `Requesting history: group ${payload.current}/${payload.total} — "${payload.group}"`;
+  } else if (payload.status === 'requested') {
+    btn.disabled = false;
+    el_.textContent = `Requested history for ${payload.total} group(s). Matches will appear above as WhatsApp responds — this can take a few minutes, and some groups may return nothing.`;
+  }
+}
+
 function connectStream() {
   const source = new EventSource('/api/stream');
   source.addEventListener('match', (e) => {
@@ -72,7 +92,13 @@ function connectStream() {
     renderMatches();
   });
   source.addEventListener('status', (e) => setStatus(JSON.parse(e.data)));
+  source.addEventListener('backfill', (e) => renderBackfillStatus(JSON.parse(e.data)));
   source.onerror = () => setStatus({ connected: false, groupCount: state.groups.length });
+}
+
+async function runBackfill() {
+  el('#backfillBtn').disabled = true;
+  await fetch('/api/backfill', { method: 'POST' });
 }
 
 function setupTabs() {
@@ -174,3 +200,4 @@ connectStream();
 el('#search').addEventListener('input', renderMatches);
 el('#groupSearch').addEventListener('input', renderGroupList);
 el('#filterForm').addEventListener('submit', saveFilters);
+el('#backfillBtn').addEventListener('click', runBackfill);
