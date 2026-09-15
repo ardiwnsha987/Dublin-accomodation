@@ -41,6 +41,8 @@ care about is posted, without having to sit in every group.
    - `keywords.include` / `keywords.exclude`: words/phrases to match or
      ignore, case-insensitive. Single words match as whole words (so `"male"`
      won't false-match inside `"female"`); phrases match as substrings.
+   - `priorityInclude`: keywords that override any `exclude` match when
+     present (default: `single room`).
    - `maxRent`: hard cutoff — a message with a single, unambiguous €-amount at
      or above this is skipped entirely.
    - `preferredRent`: amounts at or below this get tagged "priority" in the
@@ -112,6 +114,14 @@ object only exists in memory at the moment of the first automatic match and
 isn't persisted to disk, so a manual push later can't recreate that native
 "Forwarded" copy.
 
+**🔄 Refresh** — changing filters in the Filters tab only affects new
+incoming matches; it doesn't retroactively touch what's already listed.
+Refresh re-checks every non-dismissed match already on screen against your
+*current* filters/rent cutoff and auto-hides anything that no longer
+qualifies (still visible via "show dismissed", tagged as auto-hidden rather
+than manually dismissed). It's a re-check of existing data, not a new scan
+of WhatsApp — for that, use the search button above.
+
 ### On forwarded messages
 
 Each match sends **two** WhatsApp messages to your target number: a text
@@ -136,7 +146,12 @@ auto-restart on crashes.
 
 - A message only counts if it's in a watched group, contains at least one
   `include` keyword (if you set any), and contains none of the `exclude`
-  keywords.
+  keywords — **unless** it contains a `priorityInclude` keyword, in which
+  case it's accepted regardless of any exclude match. This exists for cases
+  like a message advertising both a double and a single room in one post,
+  where an exclude term describing the double room ("female only") shouldn't
+  also block the single room mentioned in the same message. Default:
+  `single room`.
 - If exactly one clear €-price is found in the message and it's at or above
   `maxRent`, the message is skipped even if the keywords matched. If no price
   is found, or more than one number looks like it could be a price, it's

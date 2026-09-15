@@ -34,6 +34,7 @@ function applyRaw(raw) {
   config.groupNameKeywords = (raw.groupNameKeywords ?? []).map((k) => k.toLowerCase());
   config.include = raw.keywords?.include?.map((k) => k.toLowerCase()) ?? [];
   config.exclude = raw.keywords?.exclude?.map((k) => k.toLowerCase()) ?? [];
+  config.priorityInclude = (raw.priorityInclude ?? []).map((k) => k.toLowerCase());
   config.maxRent = raw.maxRent ?? Infinity;
   config.preferredRent = raw.preferredRent ?? null;
   config.nearbyAreaKeywords = (raw.nearbyAreaKeywords ?? []).map((k) => k.toLowerCase());

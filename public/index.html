@@ -69,7 +69,13 @@
           <button class="chip-filter" data-filter="nearby">Near DBS</button>
           <button class="chip-filter" data-filter="bookmarked">⭐ Bookmarked</button>
         </div>
+        <button id="refreshBtn" type="button" class="btn btn-secondary">🔄 Refresh</button>
       </div>
+      <p class="muted refresh-note">
+        Refresh re-checks everything already listed below against your current Filters tab settings
+        and hides anything that no longer qualifies (e.g. rent now over your cutoff). It doesn't
+        re-fetch new WhatsApp messages — new matches still arrive automatically in real time.
+      </p>
 
       <div class="toolbar">
         <button id="backfillBtn" type="button" class="btn btn-secondary">🔍 Search watched groups</button>
@@ -130,6 +136,11 @@
         <div class="field">
           <label for="exclude">Exclude keywords <span class="muted">(one per line — message is skipped if it contains any)</span></label>
           <textarea id="exclude" name="exclude" rows="6"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="priorityInclude">Priority include keywords <span class="muted">(one per line — a match here always wins over any exclude keyword, e.g. keep a message mentioning "single room" even if it also mentions "female only" for a different room in the same message)</span></label>
+          <textarea id="priorityInclude" name="priorityInclude" rows="3"></textarea>
         </div>
 
         <div class="field">

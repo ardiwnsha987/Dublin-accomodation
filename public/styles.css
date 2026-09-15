@@ -216,7 +216,8 @@ button[type="submit"] { padding: 10px 22px; }
 .chip-filter.active { background: rgba(37, 211, 102, 0.15); color: var(--accent); border-color: var(--accent-dim); }
 
 .backfill-note,
-.push-note { margin: -4px 0 12px; font-size: 12px; line-height: 1.5; }
+.push-note,
+.refresh-note { margin: -4px 0 12px; font-size: 12px; line-height: 1.5; }
 
 #backfillStatus { margin: 0 0 16px; font-size: 13px; min-height: 18px; }
 

@@ -6,9 +6,11 @@ function keywordMatch(lower, keyword) {
   return lower.includes(keyword);
 }
 
-export function matchesFilters(text, { include, exclude }) {
+export function matchesFilters(text, { include, exclude, priorityInclude = [] }) {
   if (!text) return false;
   const lower = text.toLowerCase();
+
+  if (priorityInclude.some((word) => keywordMatch(lower, word))) return true;
 
   if (exclude.some((word) => keywordMatch(lower, word))) return false;
   if (include.length === 0) return true;

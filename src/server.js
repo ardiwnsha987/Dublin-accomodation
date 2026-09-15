@@ -1,8 +1,9 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { readRawConfig, writeRawConfig } from './config.js';
-import { getMatches, dismissMatch, clearMatches, setBookmark } from './matchStore.js';
+import { readRawConfig, writeRawConfig, config } from './config.js';
+import { getMatches, dismissMatch, clearMatches, setBookmark, refilterMatches } from './matchStore.js';
+import { matchesFilters, extractPrices } from './matcher.js';
 import { state, events } from './state.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -47,6 +48,16 @@ export function startServer() {
   app.post('/api/matches/clear', (req, res) => {
     clearMatches();
     res.json({ ok: true });
+  });
+
+  app.post('/api/matches/refresh', (req, res) => {
+    const changed = refilterMatches((match) => {
+      if (!matchesFilters(match.text, config)) return false;
+      const prices = extractPrices(match.text);
+      if (prices.length === 1 && prices[0] >= config.maxRent) return false;
+      return true;
+    });
+    res.json({ ok: true, changed });
   });
 
   app.get('/api/matches/export', (req, res) => {

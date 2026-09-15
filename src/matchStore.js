@@ -59,3 +59,17 @@ export function clearMatches() {
   matches = [];
   persist();
 }
+
+export function refilterMatches(stillMatches) {
+  let changed = 0;
+  for (const match of matches) {
+    if (match.dismissed) continue;
+    if (!stillMatches(match)) {
+      match.dismissed = true;
+      match.autoDismissed = true;
+      changed++;
+    }
+  }
+  if (changed > 0) persist();
+  return changed;
+}

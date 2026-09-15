@@ -227,6 +227,7 @@ async function loadFilters() {
   el('#preferredRent').value = state.rawConfig.preferredRent ?? '';
   el('#include').value = arrayToLines(state.rawConfig.keywords?.include);
   el('#exclude').value = arrayToLines(state.rawConfig.keywords?.exclude);
+  el('#priorityInclude').value = arrayToLines(state.rawConfig.priorityInclude);
   el('#nearbyAreaKeywords').value = arrayToLines(state.rawConfig.nearbyAreaKeywords);
   el('#groupNameKeywords').value = arrayToLines(state.rawConfig.groupNameKeywords);
   renderGroupList();
@@ -246,6 +247,7 @@ async function saveFilters(e) {
       include: linesToArray(el('#include').value),
       exclude: linesToArray(el('#exclude').value),
     },
+    priorityInclude: linesToArray(el('#priorityInclude').value),
     nearbyAreaKeywords: linesToArray(el('#nearbyAreaKeywords').value),
     groupNameKeywords: linesToArray(el('#groupNameKeywords').value),
     groupIds: checkedIds,
@@ -313,6 +315,22 @@ async function clearMatches() {
   await fetch('/api/matches/clear', { method: 'POST' });
   state.matches = [];
   renderMatches();
+}
+
+async function refreshMatches() {
+  const btn = el('#refreshBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/matches/refresh', { method: 'POST' });
+    const { changed } = await res.json();
+    await loadMatches();
+    showToast({
+      type: 'success',
+      message: changed > 0 ? `Refreshed — ${changed} match(es) no longer fit your filters and were hidden.` : 'Refreshed — everything still fits your current filters.',
+    });
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 async function dismissMatch(id) {
@@ -392,6 +410,7 @@ el('#backfillBtn').addEventListener('click', runBackfill);
 el('#testMessageBtn').addEventListener('click', sendTestMessage);
 el('#exportBtn').addEventListener('click', exportMatches);
 el('#clearBtn').addEventListener('click', clearMatches);
+el('#refreshBtn').addEventListener('click', refreshMatches);
 el('#logoutBtn').addEventListener('click', logout);
 el('#pushSelectedBtn').addEventListener('click', pushSelected);
 
