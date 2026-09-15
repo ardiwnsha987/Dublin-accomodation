@@ -10,7 +10,7 @@ import qrcode from 'qrcode-terminal';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { config } from './config.js';
-import { matchesFilters } from './matcher.js';
+import { matchesFilters, isGroupWatched } from './matcher.js';
 import { hasSeen, markSeen } from './seenStore.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -71,13 +71,18 @@ async function start() {
         groupNameCache.set(g.id, g.subject);
         console.log(`  ${g.subject} -> ${g.id}`);
       }
-      if (config.groupIds.length === 0) {
+      if (config.groupIds.length === 0 && config.groupNameKeywords.length === 0) {
         console.log(
-          '\nNo groupIds set in config.json — currently watching ALL of the groups above.'
+          '\nNo groupIds or groupNameKeywords set — currently watching ALL of the groups above.'
         );
-        console.log('To narrow it down, paste the ids you care about into "groupIds".\n');
+        console.log('To narrow it down, set "groupIds" and/or "groupNameKeywords" in config.json.\n');
       } else {
-        console.log(`\nWatching ${config.groupIds.length} configured group(s).\n`);
+        const watched = list.filter((g) => isGroupWatched(g.id, g.subject, config));
+        console.log(`\nWatching ${watched.length} group(s) (explicit list + name-keyword matches):`);
+        for (const g of watched) console.log(`  ${g.subject}`);
+        console.log(
+          'Any group you join later whose name matches groupNameKeywords will be watched automatically too.\n'
+        );
       }
     }
 
@@ -104,14 +109,14 @@ async function start() {
       const id = msg.key.id;
       if (hasSeen(id)) continue;
 
-      if (config.groupIds.length > 0 && !config.groupIds.includes(remoteJid)) continue;
+      const groupName = await getGroupName(sock, remoteJid);
+      if (!isGroupWatched(remoteJid, groupName, config)) continue;
 
       const text = extractText(msg.message);
       if (!matchesFilters(text, config)) continue;
 
       markSeen(id);
 
-      const groupName = await getGroupName(sock, remoteJid);
       const sender = msg.pushName || msg.key.participant || 'Unknown';
       const timestamp = new Date((msg.messageTimestamp ?? Date.now() / 1000) * 1000).toLocaleString(
         'en-IE',

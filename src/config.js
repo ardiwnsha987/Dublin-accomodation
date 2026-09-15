@@ -27,6 +27,7 @@ function toJid(number) {
 export const config = {
   targetJid: toJid(raw.targetNumber),
   groupIds: Array.isArray(raw.groupIds) ? raw.groupIds : [],
+  groupNameKeywords: (raw.groupNameKeywords ?? []).map((k) => k.toLowerCase()),
   include: raw.keywords?.include?.map((k) => k.toLowerCase()) ?? [],
   exclude: raw.keywords?.exclude?.map((k) => k.toLowerCase()) ?? [],
 };
