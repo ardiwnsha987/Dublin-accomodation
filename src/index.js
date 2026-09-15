@@ -14,7 +14,7 @@ import { fileURLToPath } from 'url';
 import { config, watchConfigFile } from './config.js';
 import { matchesFilters, isGroupWatched, extractPrices, findNearbyAreas } from './matcher.js';
 import { hasSeen, markSeen } from './seenStore.js';
-import { addMatch } from './matchStore.js';
+import { addMatch, getMatchById } from './matchStore.js';
 import { setConnected, setGroups, setQr, emitToast, state, events } from './state.js';
 import { startServer } from './server.js';
 
@@ -162,6 +162,37 @@ events.on('backfill-request', (payload) => {
     return;
   }
   runBackfill(currentSock, !!payload?.allGroups);
+});
+
+events.on('push-request', async ({ ids }) => {
+  if (!currentSock) {
+    emitToast('error', 'Not connected to WhatsApp yet.');
+    return;
+  }
+  let sent = 0;
+  for (const id of ids) {
+    const match = getMatchById(id);
+    if (!match) continue;
+    const text =
+      `📤 Manually pushed match\n` +
+      `Group: ${match.group}\n` +
+      `From: ${match.sender}\n` +
+      `Time: ${match.time}\n` +
+      `${match.rentTag}\n` +
+      `${match.locationTag}\n` +
+      (match.groupLink ? `Group link: ${match.groupLink}\n` : '') +
+      `\n${match.text}`;
+    try {
+      await currentSock.sendMessage(config.targetJid, { text });
+      sent++;
+    } catch (err) {
+      console.error(`Failed to push match ${id}:`, err.message);
+    }
+  }
+  emitToast(
+    sent === ids.length ? 'success' : 'error',
+    `Pushed ${sent}/${ids.length} selected match(es) to WhatsApp.`
+  );
 });
 
 events.on('test-message-request', async () => {

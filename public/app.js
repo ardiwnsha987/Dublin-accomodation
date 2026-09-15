@@ -3,6 +3,7 @@ const state = {
   groups: [],
   rawConfig: null,
   cardFilter: 'all',
+  selectedIds: new Set(),
 };
 
 function el(sel) { return document.querySelector(sel); }
@@ -20,6 +21,7 @@ function locationChip(match) {
 
 function isPriority(match) { return !!match.rentTag?.includes('priority'); }
 function isNearby(match) { return !!match.locationTag?.startsWith('📍 Near DBS'); }
+function isBookmarked(match) { return !!match.bookmarked; }
 
 function matchCard(match) {
   const openLink = match.groupLink
@@ -28,20 +30,36 @@ function matchCard(match) {
 
   return `
     <div class="match-card ${match.dismissed ? 'dismissed' : ''}" data-id="${match.id}">
-      <div class="meta">
-        <span class="group-name">${match.group}</span>
-        <span>·</span>
-        <span>${match.sender}</span>
-        <span>·</span>
-        <span>${match.time}</span>
+      <div class="card-top">
+        <label class="select-check">
+          <input type="checkbox" class="select-box" data-id="${match.id}" ${state.selectedIds.has(match.id) ? 'checked' : ''} />
+        </label>
+        <button class="star-btn ${match.bookmarked ? 'active' : ''}" data-id="${match.id}" title="Bookmark">
+          ${match.bookmarked ? '⭐' : '☆'}
+        </button>
+        <div class="meta">
+          <span class="group-name">${match.group}</span>
+          <span>·</span>
+          <span>${match.sender}</span>
+          <span>·</span>
+          <span>${match.time}</span>
+        </div>
       </div>
       <div class="meta">
         ${rentChip(match)}
         ${locationChip(match)}
       </div>
       <div class="text">${(match.text || '').replace(/</g, '&lt;')}</div>
+      <input
+        type="text"
+        class="note-input"
+        data-id="${match.id}"
+        placeholder="Add a note (e.g. 'messaged landlord', 'ask about bills')…"
+        value="${(match.note || '').replace(/"/g, '&quot;')}"
+      />
       <div class="card-actions">
         ${openLink}
+        <button class="btn btn-ghost push-btn" data-id="${match.id}">📤 Push to WhatsApp</button>
         <button class="btn btn-ghost dismiss-btn" data-id="${match.id}">${match.dismissed ? 'Dismissed' : 'Dismiss'}</button>
       </div>
     </div>
@@ -76,6 +94,7 @@ function renderMatches() {
   if (!showDismissed) filtered = filtered.filter((m) => !m.dismissed);
   if (state.cardFilter === 'priority') filtered = filtered.filter(isPriority);
   if (state.cardFilter === 'nearby') filtered = filtered.filter(isNearby);
+  if (state.cardFilter === 'bookmarked') filtered = filtered.filter(isBookmarked);
   if (query) {
     filtered = filtered.filter(
       (m) => (m.text || '').toLowerCase().includes(query) || (m.group || '').toLowerCase().includes(query)
@@ -85,6 +104,13 @@ function renderMatches() {
   emptyEl.style.display = state.matches.length === 0 ? 'block' : 'none';
   listEl.innerHTML = filtered.map(matchCard).join('');
   updateStats();
+  updatePushSelectedButton();
+}
+
+function updatePushSelectedButton() {
+  const btn = el('#pushSelectedBtn');
+  btn.disabled = state.selectedIds.size === 0;
+  btn.textContent = state.selectedIds.size > 0 ? `📤 Push selected (${state.selectedIds.size})` : '📤 Push selected';
 }
 
 function setStatus({ connected, groupCount }) {
@@ -296,6 +322,50 @@ async function dismissMatch(id) {
   renderMatches();
 }
 
+async function toggleBookmark(id) {
+  const match = state.matches.find((m) => m.id === id);
+  if (!match) return;
+  const next = !match.bookmarked;
+  await fetch(`/api/matches/${id}/bookmark`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bookmarked: next, note: match.note || '' }),
+  });
+  match.bookmarked = next;
+  renderMatches();
+}
+
+async function saveNote(id, note) {
+  const match = state.matches.find((m) => m.id === id);
+  if (!match) return;
+  match.note = note;
+  await fetch(`/api/matches/${id}/bookmark`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bookmarked: !!match.bookmarked, note }),
+  });
+}
+
+async function pushOne(id) {
+  await fetch('/api/matches/push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: [id] }),
+  });
+}
+
+async function pushSelected() {
+  const ids = [...state.selectedIds];
+  if (ids.length === 0) return;
+  await fetch('/api/matches/push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  });
+  state.selectedIds.clear();
+  renderMatches();
+}
+
 async function logout() {
   if (
     !confirm(
@@ -323,7 +393,34 @@ el('#testMessageBtn').addEventListener('click', sendTestMessage);
 el('#exportBtn').addEventListener('click', exportMatches);
 el('#clearBtn').addEventListener('click', clearMatches);
 el('#logoutBtn').addEventListener('click', logout);
+el('#pushSelectedBtn').addEventListener('click', pushSelected);
+
 el('#matchList').addEventListener('click', (e) => {
-  const btn = e.target.closest('.dismiss-btn');
-  if (btn) dismissMatch(btn.dataset.id);
+  const dismissBtn = e.target.closest('.dismiss-btn');
+  if (dismissBtn) return dismissMatch(dismissBtn.dataset.id);
+
+  const starBtn = e.target.closest('.star-btn');
+  if (starBtn) return toggleBookmark(starBtn.dataset.id);
+
+  const pushBtn = e.target.closest('.push-btn');
+  if (pushBtn) return pushOne(pushBtn.dataset.id);
 });
+
+el('#matchList').addEventListener('change', (e) => {
+  if (e.target.classList.contains('select-box')) {
+    const id = e.target.dataset.id;
+    if (e.target.checked) state.selectedIds.add(id);
+    else state.selectedIds.delete(id);
+    updatePushSelectedButton();
+  }
+});
+
+el('#matchList').addEventListener(
+  'blur',
+  (e) => {
+    if (e.target.classList.contains('note-input')) {
+      saveNote(e.target.dataset.id, e.target.value);
+    }
+  },
+  true
+);

@@ -42,6 +42,19 @@ export function dismissMatch(id) {
   return true;
 }
 
+export function setBookmark(id, bookmarked, note) {
+  const match = matches.find((m) => m.id === id);
+  if (!match) return false;
+  match.bookmarked = !!bookmarked;
+  match.note = note ?? match.note ?? '';
+  persist();
+  return true;
+}
+
+export function getMatchById(id) {
+  return matches.find((m) => m.id === id);
+}
+
 export function clearMatches() {
   matches = [];
   persist();

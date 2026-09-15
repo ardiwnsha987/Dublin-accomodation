@@ -215,7 +215,8 @@ button[type="submit"] { padding: 10px 22px; }
 
 .chip-filter.active { background: rgba(37, 211, 102, 0.15); color: var(--accent); border-color: var(--accent-dim); }
 
-.backfill-note { margin: -4px 0 12px; font-size: 12px; line-height: 1.5; }
+.backfill-note,
+.push-note { margin: -4px 0 12px; font-size: 12px; line-height: 1.5; }
 
 #backfillStatus { margin: 0 0 16px; font-size: 13px; min-height: 18px; }
 
@@ -235,6 +236,28 @@ button[type="submit"] { padding: 10px 22px; }
 
 .match-card.dismissed { opacity: 0.45; }
 
+.card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.select-check { display: flex; align-items: center; }
+.select-check input { width: 16px; height: 16px; cursor: pointer; }
+
+.star-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  color: var(--warn);
+}
+
+.star-btn.active { filter: drop-shadow(0 0 3px rgba(227, 176, 78, 0.5)); }
+
 .match-card .meta {
   display: flex;
   flex-wrap: wrap;
@@ -245,7 +268,15 @@ button[type="submit"] { padding: 10px 22px; }
   color: var(--muted);
 }
 
+.card-top .meta { margin-bottom: 0; }
+
 .match-card .group-name { color: var(--text); font-weight: 600; }
+
+.note-input {
+  margin-bottom: 10px;
+  font-size: 13px;
+  background: var(--panel-2);
+}
 
 .chip {
   display: inline-block;

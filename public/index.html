@@ -67,6 +67,7 @@
           <button class="chip-filter active" data-filter="all">All</button>
           <button class="chip-filter" data-filter="priority">Priority rent</button>
           <button class="chip-filter" data-filter="nearby">Near DBS</button>
+          <button class="chip-filter" data-filter="bookmarked">⭐ Bookmarked</button>
         </div>
       </div>
 
@@ -75,7 +76,14 @@
         <label class="checkbox-label">
           <input id="allGroupsCheck" type="checkbox" /> include all joined groups, not just watched
         </label>
+        <button id="pushSelectedBtn" type="button" class="btn btn-primary" disabled>📤 Push selected</button>
       </div>
+      <p class="muted push-note">
+        "Push" (per-card or selected) resends a text summary of the match to your WhatsApp number.
+        Only the original automatic match sends WhatsApp's native "Forwarded" copy of the source
+        message — that original message object isn't kept in storage, so a manual push can't
+        re-create it.
+      </p>
       <p class="muted backfill-note">
         Asks WhatsApp to resend older messages so past listings can be matched too. Best-effort —
         WhatsApp decides how much history it hands back, and running it often adds to the account-flag

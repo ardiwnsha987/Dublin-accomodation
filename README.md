@@ -101,6 +101,17 @@ properly (not just a local file delete) and immediately brings up a fresh QR
 code in the dashboard so you can link a different WhatsApp account if you
 want. Confirm before clicking — it ends the current session.
 
+**⭐ Bookmark + note** — star any match and optionally attach a short note
+(e.g. "messaged landlord", "ask about bills"). Filter to just your bookmarks
+with the "⭐ Bookmarked" chip.
+
+**📤 Push to WhatsApp / Push selected** — resends a match (or several, via
+the checkbox on each card) to your target number on demand. This sends a
+text summary only, not a native forward — the original WhatsApp message
+object only exists in memory at the moment of the first automatic match and
+isn't persisted to disk, so a manual push later can't recreate that native
+"Forwarded" copy.
+
 ### On forwarded messages
 
 Each match sends **two** WhatsApp messages to your target number: a text

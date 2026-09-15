@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { readRawConfig, writeRawConfig } from './config.js';
-import { getMatches, dismissMatch, clearMatches } from './matchStore.js';
+import { getMatches, dismissMatch, clearMatches, setBookmark } from './matchStore.js';
 import { state, events } from './state.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -31,6 +31,17 @@ export function startServer() {
 
   app.post('/api/matches/:id/dismiss', (req, res) => {
     res.json({ ok: dismissMatch(req.params.id) });
+  });
+
+  app.post('/api/matches/:id/bookmark', (req, res) => {
+    const { bookmarked, note } = req.body ?? {};
+    res.json({ ok: setBookmark(req.params.id, bookmarked, note) });
+  });
+
+  app.post('/api/matches/push', (req, res) => {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    events.emit('push-request', { ids });
+    res.json({ ok: true });
   });
 
   app.post('/api/matches/clear', (req, res) => {
