@@ -149,52 +149,33 @@ below.
 ## Running 24/7 on a cloud VPS
 
 This is the same app, just running on a small always-on server instead of
-your laptop, so it works whether or not your laptop is on. Any Ubuntu VPS
-works (Oracle Cloud's free tier, Hetzner, DigitalOcean, etc. — pick whichever
-you're comfortable creating an account with; this repo doesn't depend on any
-specific one).
+your laptop, so it works whether or not your laptop is on. Two ways to
+access the dashboard once it's on a VPS:
 
-1. Create an Ubuntu 22.04+ VPS with your provider and note its IP address and
-   your SSH login (usually an SSH key you download during creation).
-2. SSH in: `ssh youruser@your-server-ip`
-3. Install Node.js and git (Ubuntu):
-   ```bash
-   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-   sudo apt-get install -y nodejs git
-   ```
-4. Clone the repo and set up config as before:
-   ```bash
-   git clone <this-repo-url>
-   cd Dublin-accomodation
-   git checkout claude/dublin-accommodation-whatsapp-lfbuhc
-   npm install
-   cp config.example.json config.json
-   nano config.json   # fill in targetNumber, keywords, etc.
-   ```
-5. Install `pm2` so it keeps running and survives reboots:
-   ```bash
-   sudo npm install -g pm2
-   pm2 start src/index.js --name accommodation-watcher
-   pm2 save
-   pm2 startup   # then run the command it prints
-   ```
-6. **Viewing the dashboard and scanning the QR code**: the dashboard only
-   binds to the VPS's own `127.0.0.1` (localhost), never the public internet
-   — it has no login, so exposing it directly would let anyone who finds the
-   address view your matches and control your WhatsApp session. Instead,
-   tunnel it to your own laptop over SSH:
-   ```bash
-   ssh -L 3000:127.0.0.1:3000 youruser@your-server-ip
-   ```
-   Leave that running and open **http://localhost:3000** in your own
-   browser — it's actually talking to the dashboard on the VPS. Scan the QR
-   code that appears there.
-7. Make sure the VPS firewall doesn't allow inbound traffic on port 3000 at
-   all (only SSH, port 22) — the tunnel above doesn't need it open.
+- **Behind a real domain, with a login** (e.g. `watcher.apps.ardiwnsha.in`,
+  alongside a small portal listing any other apps you add later) — see
+  [`deploy/README.md`](deploy/README.md) for the full walkthrough
+  (Hetzner + nginx + HTTPS + shared HTTP Basic Auth, since the dashboard has
+  no login of its own).
+- **SSH tunnel only, no public domain** — simpler if you don't need a
+  memorable URL:
+  1. Create an Ubuntu 22.04+ VPS, SSH in, install Node.js + git + pm2, clone
+     this repo, `npm install`, `cp config.example.json config.json` and fill
+     it in — same as the local setup steps above.
+  2. `pm2 start src/index.js --name accommodation-watcher && pm2 save && pm2 startup`
+     (run the command `pm2 startup` prints).
+  3. The dashboard binds only to the VPS's own `127.0.0.1` by default — it
+     has no login, so never expose it directly to the internet. View it by
+     tunneling over SSH instead:
+     ```bash
+     ssh -L 3000:127.0.0.1:3000 youruser@your-server-ip
+     ```
+     then open **http://localhost:3000** locally — scan the QR code there.
+  4. Keep the VPS firewall closed to port 3000 entirely; the tunnel doesn't
+     need it open.
 
-To check on it later: `ssh` in, then `pm2 logs accommodation-watcher` for
-the terminal output, or re-open the SSH tunnel any time you want to see the
-dashboard.
+  Check on it later with `ssh` + `pm2 logs accommodation-watcher`, or
+  re-open the tunnel any time you want the dashboard.
 
 ## How matching works
 
