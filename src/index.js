@@ -29,6 +29,13 @@ let currentSock = null;
 let backfillRunning = false;
 let intentionalLogout = false;
 
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled rejection (watcher keeps running):', err);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception (watcher keeps running):', err);
+});
+
 const WRAPPER_KEYS = [
   'ephemeralMessage',
   'viewOnceMessage',
@@ -65,6 +72,42 @@ async function getGroupName(sock, jid) {
     return metadata.subject;
   } catch {
     return jid;
+  }
+}
+
+async function loadGroups(sock, attempt = 1) {
+  try {
+    const groups = await sock.groupFetchAllParticipating();
+    const list = Object.values(groups).map((g) => ({ id: g.id, subject: g.subject }));
+    setGroups(list);
+    console.log(`\nYou are in ${list.length} groups:`);
+    for (const g of list) {
+      groupNameCache.set(g.id, g.subject);
+      console.log(`  ${g.subject} -> ${g.id}`);
+    }
+    if (config.groupIds.length === 0 && config.groupNameKeywords.length === 0) {
+      console.log(
+        '\nNo groupIds or groupNameKeywords set — currently watching ALL of the groups above.'
+      );
+      console.log('To narrow it down, set "groupIds" and/or "groupNameKeywords" in config.json.\n');
+    } else {
+      const watched = list.filter((g) => isGroupWatched(g.id, g.subject, config));
+      console.log(`\nWatching ${watched.length} group(s) (explicit list + name-keyword matches):`);
+      for (const g of watched) console.log(`  ${g.subject}`);
+      console.log(
+        'Any group you join later whose name matches groupNameKeywords will be watched automatically too.\n'
+      );
+    }
+  } catch (err) {
+    console.error(`Failed to fetch group list (attempt ${attempt}):`, err.message);
+    if (attempt < 3 && sock === currentSock) {
+      await delay(5000);
+      return loadGroups(sock, attempt + 1);
+    }
+    emitToast(
+      'error',
+      'Could not fetch your group list from WhatsApp after several tries — live message matching still works for groups already known from a previous run; try Refresh later or restart.'
+    );
   }
 }
 
@@ -257,6 +300,7 @@ async function start() {
     auth: authState,
     logger,
     printQRInTerminal: false,
+    defaultQueryTimeoutMs: 120_000,
   });
 
   currentSock = sock;
@@ -280,27 +324,7 @@ async function start() {
     if (connection === 'open') {
       console.log('Connected to WhatsApp.');
       setConnected(true);
-      const groups = await sock.groupFetchAllParticipating();
-      const list = Object.values(groups).map((g) => ({ id: g.id, subject: g.subject }));
-      setGroups(list);
-      console.log(`\nYou are in ${list.length} groups:`);
-      for (const g of list) {
-        groupNameCache.set(g.id, g.subject);
-        console.log(`  ${g.subject} -> ${g.id}`);
-      }
-      if (config.groupIds.length === 0 && config.groupNameKeywords.length === 0) {
-        console.log(
-          '\nNo groupIds or groupNameKeywords set — currently watching ALL of the groups above.'
-        );
-        console.log('To narrow it down, set "groupIds" and/or "groupNameKeywords" in config.json.\n');
-      } else {
-        const watched = list.filter((g) => isGroupWatched(g.id, g.subject, config));
-        console.log(`\nWatching ${watched.length} group(s) (explicit list + name-keyword matches):`);
-        for (const g of watched) console.log(`  ${g.subject}`);
-        console.log(
-          'Any group you join later whose name matches groupNameKeywords will be watched automatically too.\n'
-        );
-      }
+      loadGroups(sock);
     }
 
     if (connection === 'close') {
