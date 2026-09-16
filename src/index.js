@@ -29,13 +29,30 @@ let currentSock = null;
 let backfillRunning = false;
 let intentionalLogout = false;
 
+const WRAPPER_KEYS = [
+  'ephemeralMessage',
+  'viewOnceMessage',
+  'viewOnceMessageV2',
+  'viewOnceMessageV2Extension',
+  'documentWithCaptionMessage',
+];
+
+function unwrapMessage(message) {
+  if (!message) return message;
+  for (const key of WRAPPER_KEYS) {
+    if (message[key]?.message) return unwrapMessage(message[key].message);
+  }
+  return message;
+}
+
 function extractText(message) {
-  if (!message) return '';
+  const unwrapped = unwrapMessage(message);
+  if (!unwrapped) return '';
   return (
-    message.conversation ||
-    message.extendedTextMessage?.text ||
-    message.imageMessage?.caption ||
-    message.videoMessage?.caption ||
+    unwrapped.conversation ||
+    unwrapped.extendedTextMessage?.text ||
+    unwrapped.imageMessage?.caption ||
+    unwrapped.videoMessage?.caption ||
     ''
   );
 }
